@@ -1,13 +1,6 @@
 {
   "buildCommand": "cd quick-cut-scheduling-main && npm run build",
   "outputDirectory": "quick-cut-scheduling-main/.output/public",
-  "devCommand": "cd quick-cut-scheduling-main && npm run dev",
   "installCommand": "cd quick-cut-scheduling-main && npm install",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "framework": "vite"
 }
