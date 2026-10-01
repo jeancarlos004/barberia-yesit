@@ -1,5 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { invalidateBarber } from "@/lib/barber-store";
 import {
   Bell,
   CalendarCheck,
@@ -9,11 +10,15 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MoreHorizontal,
   Pencil,
   Plus,
   Scissors,
   Settings,
+  Shield,
+  ShieldAlert,
   Trash2,
+  UserCog,
   Users,
   XCircle,
 } from "lucide-react";
@@ -43,11 +48,22 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   ApiError,
+  bloquearCliente,
   cambiarEstado,
+  cambiarRolCliente,
   crearBloqueo,
+  desbloquearCliente,
   DIAS,
   eliminarBloqueo,
+  eliminarCliente,
   eliminarServicio,
   formatFecha,
   formatHora,
@@ -59,8 +75,8 @@ import {
   toKey,
   useBarberData,
   useCurrentUser,
-  useInvalidate,
   type AppointmentStatus,
+  type Role,
   type Service,
 } from "@/lib/barber-store";
 
@@ -100,8 +116,8 @@ const sections: { id: SectionId; label: string; icon: typeof Users }[] = [
 ];
 
 function Admin() {
-  const db = useBarberData();
   const user = useCurrentUser();
+  const db = useBarberData(user);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [section, setSection] = useState<SectionId>("dashboard");
@@ -119,7 +135,7 @@ function Admin() {
 
   const fechaSel = toKey(selected);
   const hoy = toKey(new Date());
-  const deHoy = db.appointments.filter((a) => a.fecha === hoy);
+  const deHoy = db.appointments.filter((a) => a.fecha === (selected ? fechaSel : hoy));
   const titulo = sections.find((s) => s.id === section)!.label;
 
   return (
@@ -257,10 +273,10 @@ function Admin() {
 
               <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
                 <section className="surface-elite min-w-0 rounded-xl p-4 sm:p-5">
-                  <h2 className="font-display text-lg uppercase">Turnos de hoy</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{formatFecha(hoy)}</p>
+                  <h2 className="font-display text-lg uppercase">Turnos de {selected ? formatFecha(fechaSel) : "hoy"}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{selected ? formatFecha(fechaSel) : formatFecha(hoy)}</p>
                   <div className="mt-4">
-                    <TurnosTable fecha={hoy} compact />
+                    <TurnosTable fecha={selected ? fechaSel : hoy} compact />
                   </div>
                   <Button variant="outline" className="mt-5 w-full sm:w-auto" onClick={() => setSection("turnos")}>
                     Ver todos los turnos
@@ -366,8 +382,9 @@ function Stat({
 }
 
 function TurnosTable({ fecha, compact }: { fecha?: string; compact?: boolean }) {
-  const db = useBarberData();
-  const invalidate = useInvalidate();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
   const rows = useMemo(
     () =>
       db.appointments
@@ -381,7 +398,7 @@ function TurnosTable({ fecha, compact }: { fecha?: string; compact?: boolean }) 
   const onEstado = async (id: string, estado: AppointmentStatus) => {
     try {
       await cambiarEstado(id, estado);
-      await invalidate();
+      await invalidateBarber(queryClient);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "No se pudo cambiar el estado");
     }
@@ -473,8 +490,52 @@ function TurnosTable({ fecha, compact }: { fecha?: string; compact?: boolean }) 
 }
 
 function ClientesPanel() {
-  const db = useBarberData();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
   const clientes = db.users.filter((u) => u.role === "cliente");
+
+  const handleEliminar = async (id: string, nombre: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al cliente ${nombre}?`)) return;
+    try {
+      await eliminarCliente(id);
+      await invalidateBarber(queryClient);
+      toast.success("Cliente eliminado");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "No se pudo eliminar el cliente");
+    }
+  };
+
+  const handleBloquear = async (id: string, nombre: string) => {
+    try {
+      await bloquearCliente(id);
+      await invalidateBarber(queryClient);
+      toast.success("Cliente bloqueado");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "No se pudo bloquear el cliente");
+    }
+  };
+
+  const handleDesbloquear = async (id: string, nombre: string) => {
+    try {
+      await desbloquearCliente(id);
+      await invalidateBarber(queryClient);
+      toast.success("Cliente desbloqueado");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "No se pudo desbloquear el cliente");
+    }
+  };
+
+  const handleCambiarRol = async (id: string, nuevoRol: Role) => {
+    try {
+      await cambiarRolCliente(id, nuevoRol);
+      await invalidateBarber(queryClient);
+      toast.success(`Rol cambiado a ${nuevoRol}`);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "No se pudo cambiar el rol");
+    }
+  };
+
   return (
     <>
       <div className="space-y-3 md:hidden">
@@ -488,6 +549,24 @@ function ClientesPanel() {
               </div>
               <span className="text-sm text-primary">{db.appointments.filter((a) => a.userId === c.id).length} turnos</span>
             </div>
+            <div className="mt-3 flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => handleBloquear(c.id, c.nombre)}
+              >
+                <ShieldAlert className="size-4" /> Bloquear
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => handleEliminar(c.id, c.nombre)}
+              >
+                <Trash2 className="size-4 text-destructive" /> Eliminar
+              </Button>
+            </div>
           </article>
         ))}
         {clientes.length === 0 && <p className="py-5 text-center text-sm text-muted-foreground">Aún no hay clientes registrados</p>}
@@ -500,6 +579,8 @@ function ClientesPanel() {
             <th className="px-4 py-3 font-normal">Correo</th>
             <th className="px-4 py-3 font-normal">Teléfono</th>
             <th className="px-4 py-3 font-normal">Turnos</th>
+            <th className="px-4 py-3 font-normal">Estado</th>
+            <th className="px-4 py-3 font-normal">Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -509,11 +590,46 @@ function ClientesPanel() {
               <td className="px-4 py-3 text-muted-foreground">{c.email}</td>
               <td className="px-4 py-3 text-muted-foreground">{c.telefono}</td>
               <td className="px-4 py-3">{db.appointments.filter((a) => a.userId === c.id).length}</td>
+              <td className="px-4 py-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  c.is_active !== false ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
+                }`}>
+                  {c.is_active !== false ? "Activo" : "Bloqueado"}
+                </span>
+              </td>
+              <td className="px-4 py-3">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => handleCambiarRol(c.id, "admin")}>
+                      <UserCog className="size-4" /> Hacer Admin
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {c.is_active !== false ? (
+                      <DropdownMenuItem onClick={() => handleBloquear(c.id, c.nombre)}>
+                        <ShieldAlert className="size-4" /> Bloquear
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => handleDesbloquear(c.id, c.nombre)}>
+                        <Shield className="size-4" /> Desbloquear
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleEliminar(c.id, c.nombre)} className="text-destructive">
+                      <Trash2 className="size-4" /> Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </td>
             </tr>
           ))}
           {clientes.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+              <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
                 Aún no hay clientes registrados
               </td>
             </tr>
@@ -526,15 +642,16 @@ function ClientesPanel() {
 }
 
 function HorariosPanel() {
-  const db = useBarberData();
-  const invalidate = useInvalidate();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
 
   const save = async (dia: number, patch: Partial<(typeof db.schedules)[number]>) => {
     const next = db.schedules.map((s) => (s.dia === dia ? { ...s, ...patch } : s));
     if (next.length !== 7) return;
     try {
       await guardarHorarios(next);
-      await invalidate();
+      await invalidateBarber(queryClient);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "No se pudieron guardar los horarios");
     }
@@ -562,8 +679,9 @@ function HorariosPanel() {
 }
 
 function ServiciosPanel() {
-  const db = useBarberData();
-  const invalidate = useInvalidate();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
   const [editing, setEditing] = useState<Service | null>(null);
   const [form, setForm] = useState({ nombre: "", duracion: 30, precio: 20000 });
 
@@ -579,15 +697,18 @@ function ServiciosPanel() {
         onSubmit={async (e) => {
           e.preventDefault();
           try {
-            await guardarServicio({
-              id: editing?.id,
+            const payload: Omit<Service, "id"> & { id?: string } = {
               nombre: form.nombre,
               duracion: Number(form.duracion),
               precio: Number(form.precio),
               activo: editing?.activo ?? true,
               icono: editing?.icono ?? "scissors",
-            });
-            await invalidate();
+            };
+            if (editing?.id) {
+              payload.id = editing.id;
+            }
+            await guardarServicio(payload);
+            await invalidateBarber(queryClient);
             toast.success(editing ? "Servicio actualizado" : "Servicio creado");
             reset();
           } catch (err) {
@@ -651,7 +772,7 @@ function ServiciosPanel() {
                 onCheckedChange={async (v) => {
                   try {
                     await guardarServicio({ ...s, activo: v });
-                    await invalidate();
+                    await invalidateBarber(queryClient);
                   } catch (err) {
                     toast.error(err instanceof ApiError ? err.message : "No se pudo actualizar");
                   }
@@ -676,7 +797,7 @@ function ServiciosPanel() {
               onClick={async () => {
                 try {
                   await eliminarServicio(s.id);
-                  await invalidate();
+                  await invalidateBarber(queryClient);
                   toast.success("Servicio eliminado");
                 } catch (err) {
                   toast.error(err instanceof ApiError ? err.message : "No se pudo eliminar");
@@ -694,8 +815,9 @@ function ServiciosPanel() {
 }
 
 function BloqueosPanel() {
-  const db = useBarberData();
-  const invalidate = useInvalidate();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({ fecha: toKey(new Date()), desde: "14:00", hasta: "16:00", motivo: "" });
 
   return (
@@ -706,7 +828,7 @@ function BloqueosPanel() {
           e.preventDefault();
           try {
             await crearBloqueo(form);
-            await invalidate();
+            await invalidateBarber(queryClient);
             setForm({ ...form, motivo: "" });
             toast.success("Bloqueo creado");
           } catch (err) {
@@ -764,7 +886,7 @@ function BloqueosPanel() {
               onClick={async () => {
                 try {
                   await eliminarBloqueo(b.id);
-                  await invalidate();
+                  await invalidateBarber(queryClient);
                   toast.success("Bloqueo eliminado");
                 } catch (err) {
                   toast.error(err instanceof ApiError ? err.message : "No se pudo eliminar");
@@ -783,8 +905,9 @@ function BloqueosPanel() {
 }
 
 function ConfigPanel() {
-  const db = useBarberData();
-  const invalidate = useInvalidate();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
+  const queryClient = useQueryClient();
   const [form, setForm] = useState(db.settings);
 
   useEffect(() => {
@@ -798,7 +921,7 @@ function ConfigPanel() {
         e.preventDefault();
         try {
           await guardarConfig(form);
-          await invalidate();
+          await invalidateBarber(queryClient);
           toast.success("Configuración guardada");
         } catch (err) {
           toast.error(err instanceof ApiError ? err.message : "No se pudo guardar");

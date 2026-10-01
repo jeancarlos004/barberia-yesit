@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recordatorio de Turno - Barbería YESIT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #d4af37;
+        }
+        .turno-info {
+            background-color: #fff;
+            border-left: 4px solid #d4af37;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">BARBERÍA YESIT</div>
+        </div>
+        
+        <h2>Recordatorio de Turno</h2>
+        
+        <p>Hola {{ turno.usuario.nombre }},</p>
+        
+        <p>Este es un recordatorio de tu turno para mañana:</p>
+        
+        <div class="turno-info">
+            <p><strong>Servicio:</strong> {{ servicio.nombre }}</p>
+            <p><strong>Fecha:</strong> {{ fecha }}</p>
+            <p><strong>Hora:</strong> {{ hora }}</p>
+        </div>
+        
+        <p>Por favor, asegúrate de llegar 10 minutos antes de tu turno.</p>
+        
+        <p>Si necesitas cancelar o reprogramar tu turno, contáctanos lo antes posible.</p>
+        
+        <div class="footer">
+            <p>© 2024 Barbería YESIT. Todos los derechos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

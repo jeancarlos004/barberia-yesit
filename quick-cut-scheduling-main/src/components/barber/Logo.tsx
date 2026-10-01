@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/react-router";
 
-import logoAsset from "@/assets/logo-barberia-yesit.png.asset.json";
+import logoImage from "@/assets/Logo-Barberia.png";
 
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <Link to="/" className={`group flex items-center gap-3 ${className}`}>
       <span className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-border/60 bg-[oklch(0.95_0_0)] p-1 shadow-gold transition-colors group-hover:border-primary/60">
         <img
-          src={logoAsset.url}
+          src={logoImage}
           alt="Logo Barberia YESIT"
           width={48}
           height={48}

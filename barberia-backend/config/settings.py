@@ -31,6 +31,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
+    "django_crontab",
     "apps.usuarios",
     "apps.catalogo",
     "apps.turnos",
@@ -135,6 +136,35 @@ SIMPLE_JWT = {
 }
 
 SLOT_MINUTES = 30
+
+# Email Configuration
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in {"1", "true"}
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@barberia-yesit.com")
+EMAIL_SUBJECT_PREFIX = "[Barbería YESIT] "
+
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+
+# Django Crontab Configuration
+CRONTAB_COMMAND_PREFIX = ".venv/Scripts/python.exe" if os.name == "nt" else ".venv/bin/python"
+CRONJOBS = [
+    # Recordatorio de turnos diariamente a las 8 AM
+    ('0 8 * * *', 'apps.turnos.tasks.enviar_recordatorios_turnos', '>> /tmp/cron.log 2>&1'),
+    # Limpiar tokens expirados semanalmente (domingo a las 3 AM)
+    ('0 3 * * 0', 'apps.turnos.tasks.limpiar_tokens_expirados', '>> /tmp/cron.log 2>&1'),
+    # Cancelar turnos no confirmados cada hora
+    ('0 * * * *', 'apps.turnos.tasks.cancelar_turnos_no_confirmados', '>> /tmp/cron.log 2>&1'),
+]
 
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True

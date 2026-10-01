@@ -4,7 +4,7 @@ import { ArrowRight, Award, Clock, MapPin, Phone, Sparkles, Star } from "lucide-
 import heroImg from "@/assets/hero-barberia.jpg";
 import { SiteHeader } from "@/components/barber/SiteHeader";
 import { Button } from "@/components/ui/button";
-import { DIAS, formatHora, formatPrecio, useBarberData } from "@/lib/barber-store";
+import { useBarberData, useCurrentUser, formatPrecio, DIAS } from "@/lib/barber-store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,13 +26,16 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
-  const db = useBarberData();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
   const servicios = db.services.filter((s) => s.activo);
   const abiertos = db.schedules.filter((s) => s.abierto);
-  const horarioResumen =
-    abiertos.length > 0
-      ? `${formatHora(abiertos[0].desde)} - ${formatHora(abiertos[abiertos.length - 1].hasta)}`
-      : "Consulta horarios";
+  const nombreNegocio = db.settings.nombre || "Barberia YESIT";
+
+  // Build a summary of opening hours
+  const horarioResumen = abiertos.length > 0
+    ? `${abiertos[0]?.desde ?? ""} - ${abiertos[abiertos.length - 1]?.hasta ?? ""}`
+    : "9:00 AM - 7:00 PM";
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,7 +56,7 @@ function Index() {
               Tu mejor <span className="block text-gold">versión</span> comienza aquí
             </h1>
             <p className="mt-5 max-w-md text-muted-foreground">
-              Reserva tu turno en segundos y disfruta de la experiencia YESIT.
+              Reserva tu turno en segundos y disfruta de la experiencia {nombreNegocio}.
             </p>
             <Button asChild size="lg" className="mt-8">
               <Link to="/reservar">
@@ -82,7 +85,7 @@ function Index() {
         <section className="border-y border-border/60 bg-card/40">
           <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 sm:grid-cols-3">
             <Info icon={Clock} title="Horario" text={horarioResumen} />
-            <Info icon={MapPin} title={db.settings.direccion || "Dirección"} text={db.settings.nombre} />
+            <Info icon={MapPin} title="Dirección" text={db.settings.direccion || "Dirección"} />
             <Info icon={Phone} title={db.settings.telefono || "Teléfono"} text="WhatsApp" />
           </div>
         </section>
@@ -91,13 +94,39 @@ function Index() {
           <h2 className="font-display text-3xl uppercase">Nuestros servicios</h2>
           <p className="mt-2 text-muted-foreground">Elige el servicio que deseas y reserva en línea.</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {servicios.map((s) => (
-              <div key={s.id} className="surface-elite rounded-xl p-5">
-                <h3 className="font-display text-lg">{s.nombre}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{s.duracion} min</p>
-                <p className="mt-4 text-xl text-primary">{formatPrecio(s.precio)}</p>
-              </div>
-            ))}
+            {servicios.length > 0 ? (
+              servicios.slice(0, 4).map((servicio) => (
+                <div key={servicio.id} className="surface-elite rounded-xl p-5">
+                  <h3 className="font-display text-lg">{servicio.nombre}</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">{servicio.duracion} min</p>
+                  <p className="mt-4 text-xl text-primary">{formatPrecio(servicio.precio)}</p>
+                </div>
+              ))
+            ) : (
+              // Fallback services if API fails
+              <>
+                <div className="surface-elite rounded-xl p-5">
+                  <h3 className="font-display text-lg">Corte Clásico</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">30 min</p>
+                  <p className="mt-4 text-xl text-primary">$20,000</p>
+                </div>
+                <div className="surface-elite rounded-xl p-5">
+                  <h3 className="font-display text-lg">Barba</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">20 min</p>
+                  <p className="mt-4 text-xl text-primary">$15,000</p>
+                </div>
+                <div className="surface-elite rounded-xl p-5">
+                  <h3 className="font-display text-lg">Corte + Barba</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">45 min</p>
+                  <p className="mt-4 text-xl text-primary">$30,000</p>
+                </div>
+                <div className="surface-elite rounded-xl p-5">
+                  <h3 className="font-display text-lg">Corte Premium</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">60 min</p>
+                  <p className="mt-4 text-xl text-primary">$40,000</p>
+                </div>
+              </>
+            )}
           </div>
           <Button asChild variant="outline" className="mt-8">
             <Link to="/servicios">Ver todos los servicios</Link>
@@ -108,27 +137,57 @@ function Index() {
           <div className="mx-auto max-w-6xl px-4 py-16">
             <h2 className="font-display text-3xl uppercase">Horarios de atención</h2>
             <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {[1, 2, 3, 4, 5, 6, 0].map((d) => {
-                const h = db.schedules.find((s) => s.dia === d);
-                return (
-                  <div
-                    key={d}
-                    className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm"
-                  >
-                    <span>{DIAS[d]}</span>
-                    <span className={h?.abierto ? "text-primary" : "text-muted-foreground"}>
-                      {h?.abierto ? `${h.desde} - ${h.hasta}` : "Cerrado"}
-                    </span>
+              {db.schedules.length > 0 ? (
+                db.schedules.map((schedule) => (
+                  <div key={schedule.dia} className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>{DIAS[schedule.dia]}</span>
+                    {schedule.abierto ? (
+                      <span className="text-primary">{schedule.desde} - {schedule.hasta}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Cerrado</span>
+                    )}
                   </div>
-                );
-              })}
+                ))
+              ) : (
+                // Fallback schedule if API fails
+                <>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Lunes</span>
+                    <span className="text-primary">9:00 AM - 7:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Martes</span>
+                    <span className="text-primary">9:00 AM - 7:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Miércoles</span>
+                    <span className="text-primary">9:00 AM - 7:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Jueves</span>
+                    <span className="text-primary">9:00 AM - 7:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Viernes</span>
+                    <span className="text-primary">9:00 AM - 7:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Sábado</span>
+                    <span className="text-primary">9:00 AM - 6:00 PM</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg border border-border/60 px-4 py-3 text-sm">
+                    <span>Domingo</span>
+                    <span className="text-muted-foreground">Cerrado</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </section>
       </main>
 
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Barberia YESIT
+        © {new Date().getFullYear()} {nombreNegocio}
       </footer>
     </div>
   );

@@ -7,3 +7,6 @@ dj-database-url
 python-dotenv
 gunicorn
 whitenoise
+django-crontab
+celery
+redis

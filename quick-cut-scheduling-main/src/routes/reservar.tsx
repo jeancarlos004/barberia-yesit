@@ -36,8 +36,8 @@ export const Route = createFileRoute("/reservar")({
 const pasos = ["Servicio", "Fecha", "Hora", "Confirmar"];
 
 function Reservar() {
-  const db = useBarberData();
   const user = useCurrentUser();
+  const db = useBarberData(user);
   const navigate = useNavigate();
 
   const [paso, setPaso] = useState(0);
@@ -55,7 +55,7 @@ function Reservar() {
     serviceId,
     paso === 2,
   );
-  const slots = horasLibres.map((h) => ({ hora: h, disponible: true }));
+  const slots = horasLibres.map((h) => ({ hora: h, disponible: true, motivo: undefined }));
 
   const confirmar = async () => {
     if (!user) {
@@ -188,7 +188,7 @@ function Reservar() {
                     )}
                   >
                     <span>{formatHora(s.hora)}</span>
-                    <span className="text-xs">{s.disponible ? <Check className="size-4" /> : s.motivo}</span>
+                    <span className="text-xs">{s.disponible ? <Check className="size-4" /> : "No disponible"}</span>
                   </button>
                 ))}
                 {slots.length === 0 && (

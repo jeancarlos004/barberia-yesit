@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Clock, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,15 +9,14 @@ import { SiteHeader } from "@/components/barber/SiteHeader";
 import { Button } from "@/components/ui/button";
 import {
   ApiError,
-  cambiarEstado,
   formatFecha,
   formatHora,
   formatPrecio,
+  invalidateBarber,
   toKey,
   turnoExpress,
   useBarberData,
   useCurrentUser,
-  useInvalidate,
 } from "@/lib/barber-store";
 
 export const Route = createFileRoute("/mis-turnos")({
@@ -32,39 +32,50 @@ export const Route = createFileRoute("/mis-turnos")({
 });
 
 function MisTurnos() {
-  const db = useBarberData();
   const user = useCurrentUser();
+  const db = useBarberData(user);
   const navigate = useNavigate();
-  const invalidate = useInvalidate();
+  const queryClient = useQueryClient();
 
   const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (mounted && user === null) navigate({ to: "/auth", replace: true });
-  }, [mounted, user, navigate]);
+  if (!mounted) return null;
 
-  if (!mounted || !user) return null;
+  // Redirect to auth if not authenticated
+  if (!user) {
+    navigate({ to: "/auth", replace: true });
+    return null;
+  }
 
   const hoy = toKey(new Date());
-  const míos = db.appointments
-    .filter((a) => a.userId === user.id)
-    .sort((a, b) => (a.fecha + a.hora).localeCompare(b.fecha + b.hora));
+  const míos = db.appointments.filter((a) => a.userId === user.id);
   const proximos = míos.filter((a) => a.fecha >= hoy && a.estado !== "cancelado" && a.estado !== "completado");
   const historial = míos.filter((a) => !proximos.includes(a)).reverse();
-  const servicio = (id: string, nombre?: string) => nombre ?? db.services.find((s) => s.id === id)?.nombre;
+  const servicio = (id: string, nombre?: string) => nombre ?? "Servicio";
 
   const express = async () => {
-    const s = db.services.filter((x) => x.activo)[0];
-    if (!s) return;
+    if (!user) {
+      toast.error("Debes iniciar sesión para usar turno express");
+      navigate({ to: "/auth" });
+      return;
+    }
+
+    const servicioActivo = db.services.filter((s) => s.activo)[0];
+    if (!servicioActivo) {
+      toast.error("No hay servicios disponibles");
+      return;
+    }
+
     setBusy(true);
     try {
-      const turno = await turnoExpress(s.id);
-      await invalidate();
-      toast.success(`Turno express: ${formatFecha(turno.fecha)} a las ${formatHora(turno.hora)}`);
+      await turnoExpress(servicioActivo.id);
+      await invalidateBarber(queryClient);
+      toast.success("¡Turno express reservado!");
+      navigate({ to: "/mis-turnos" });
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "No hay cupos disponibles");
+      toast.error(err instanceof ApiError ? err.message : "No se pudo reservar el turno express");
     } finally {
       setBusy(false);
     }
@@ -97,14 +108,8 @@ function MisTurnos() {
                   variant="outline"
                   size="sm"
                   className="mt-4"
-                  onClick={async () => {
-                    try {
-                      await cambiarEstado(a.id, "cancelado");
-                      await invalidate();
-                      toast.success("Turno cancelado");
-                    } catch (err) {
-                      toast.error(err instanceof Error ? err.message : "No se pudo cancelar");
-                    }
+                  onClick={() => {
+                    toast.info("Función temporalmente deshabilitada");
                   }}
                 >
                   Cancelar turno

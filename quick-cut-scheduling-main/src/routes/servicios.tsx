@@ -3,7 +3,7 @@ import { Clock } from "lucide-react";
 
 import { SiteHeader } from "@/components/barber/SiteHeader";
 import { Button } from "@/components/ui/button";
-import { formatPrecio, useBarberData } from "@/lib/barber-store";
+import { formatPrecio, useBarberData, useCurrentUser } from "@/lib/barber-store";
 
 export const Route = createFileRoute("/servicios")({
   head: () => ({
@@ -21,7 +21,8 @@ export const Route = createFileRoute("/servicios")({
 });
 
 function Servicios() {
-  const db = useBarberData();
+  const user = useCurrentUser();
+  const db = useBarberData(user);
   const servicios = db.services.filter((s) => s.activo);
 
   return (

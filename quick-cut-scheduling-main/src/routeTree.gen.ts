@@ -14,6 +14,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MisTurnosRouteImport } from './routes/mis-turnos'
 import { Route as ReservarRouteImport } from './routes/reservar'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServiciosRouteImport } from './routes/servicios'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const ReservarRoute = ReservarRouteImport.update({
   path: '/reservar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServiciosRoute = ServiciosRouteImport.update({
   id: '/servicios',
   path: '/servicios',
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/mis-turnos': typeof MisTurnosRoute
   '/reservar': typeof ReservarRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/servicios': typeof ServiciosRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/mis-turnos': typeof MisTurnosRoute
   '/reservar': typeof ReservarRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/servicios': typeof ServiciosRoute
 }
 export interface FileRoutesById {
@@ -70,14 +78,28 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/mis-turnos': typeof MisTurnosRoute
   '/reservar': typeof ReservarRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/servicios': typeof ServiciosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/admin' | '/auth' | '/mis-turnos' | '/reservar' | '/servicios'
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/mis-turnos'
+    | '/reservar'
+    | '/reset-password'
+    | '/servicios'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/auth' | '/mis-turnos' | '/reservar' | '/servicios'
+  to:
+    | '/'
+    | '/admin'
+    | '/auth'
+    | '/mis-turnos'
+    | '/reservar'
+    | '/reset-password'
+    | '/servicios'
   id:
     | '__root__'
     | '/'
@@ -85,6 +107,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/mis-turnos'
     | '/reservar'
+    | '/reset-password'
     | '/servicios'
   fileRoutesById: FileRoutesById
 }
@@ -94,6 +117,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   MisTurnosRoute: typeof MisTurnosRoute
   ReservarRoute: typeof ReservarRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ServiciosRoute: typeof ServiciosRoute
 }
 
@@ -134,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReservarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/servicios': {
       id: '/servicios'
       path: '/servicios'
@@ -150,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   MisTurnosRoute: MisTurnosRoute,
   ReservarRoute: ReservarRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ServiciosRoute: ServiciosRoute,
 }
 export const routeTree = rootRouteImport

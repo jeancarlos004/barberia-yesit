@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { login, register } from "@/lib/barber-store";
+import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
+import { solicitarRecuperacionPassword } from "@/lib/barber-store";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -23,9 +24,23 @@ export const Route = createFileRoute("/auth")({
 
 function Auth() {
   const navigate = useNavigate();
+  const { login, register, isLoading } = useAuth();
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [regData, setRegData] = useState({ nombre: "", email: "", telefono: "", password: "" });
-  const [busy, setBusy] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [showResetForm, setShowResetForm] = useState(false);
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await solicitarRecuperacionPassword(resetEmail);
+      toast.success("Se ha enviado un correo con las instrucciones para restablecer tu contraseña");
+      setShowResetForm(false);
+      setResetEmail("");
+    } catch (err) {
+      toast.error("Error al solicitar recuperación de contraseña");
+    }
+  };
 
   const goHome = (role: string) =>
     navigate({ to: role === "admin" ? "/admin" : "/mis-turnos", replace: true });
@@ -48,15 +63,18 @@ function Auth() {
                 className="space-y-4"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  setBusy(true);
                   const res = await login(loginData.email, loginData.password);
-                  setBusy(false);
                   if (!res.ok) {
                     toast.error(res.error);
                     return;
                   }
                   toast.success(`Bienvenido, ${res.user!.nombre}`);
-                  goHome(res.user!.role);
+                  // Navigate based on user role
+                  if (res.user!.role === "admin") {
+                    navigate({ to: "/admin", replace: true });
+                  } else {
+                    navigate({ to: "/mis-turnos", replace: true });
+                  }
                 }}
               >
                 <Field label="Correo">
@@ -75,10 +93,51 @@ function Auth() {
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   />
                 </Field>
-                <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? "Entrando…" : "Entrar"}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Entrando…" : "Entrar"}
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => setShowResetForm(true)}
+                  className="mt-2 w-full text-sm text-muted-foreground hover:text-foreground"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
               </form>
+              
+              {showResetForm && (
+                <div className="mt-4 space-y-4 rounded-lg border border-border/60 bg-secondary/40 p-4">
+                  <p className="text-sm font-medium">Recuperar Contraseña</p>
+                  <form onSubmit={handlePasswordReset} className="space-y-3">
+                    <Field label="Correo">
+                      <Input
+                        type="email"
+                        required
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="tu@correo.com"
+                      />
+                    </Field>
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" className="flex-1">
+                        Enviar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowResetForm(false);
+                          setResetEmail("");
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  </form>
+                </div>
+              )}
+              
               <div className="mt-6 rounded-lg border border-border/60 bg-secondary/40 p-3 text-xs text-muted-foreground">
                 <p className="font-medium text-foreground">Cuentas de prueba</p>
                 <p>Cliente: cliente@barberia.com / cliente123</p>
@@ -91,15 +150,14 @@ function Auth() {
                 className="space-y-4"
                 onSubmit={async (e) => {
                   e.preventDefault();
-                  setBusy(true);
                   const res = await register(regData);
-                  setBusy(false);
                   if (!res.ok) {
                     toast.error(res.error);
                     return;
                   }
                   toast.success("Cuenta creada correctamente");
-                  goHome("cliente");
+                  // Navigate to mis-turnos after registration
+                  navigate({ to: "/mis-turnos", replace: true });
                 }}
               >
                 <Field label="Nombre completo">
@@ -133,8 +191,8 @@ function Auth() {
                     onChange={(e) => setRegData({ ...regData, password: e.target.value })}
                   />
                 </Field>
-                <Button type="submit" className="w-full" disabled={busy}>
-                  {busy ? "Creando…" : "Crear cuenta"}
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Creando…" : "Crear cuenta"}
                 </Button>
               </form>
             </TabsContent>
