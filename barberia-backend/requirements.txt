@@ -10,3 +10,5 @@ whitenoise
 django-crontab
 celery
 redis
+google-auth>=2.23.0
+requests>=2.31.0

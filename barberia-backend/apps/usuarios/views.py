@@ -9,6 +9,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
+import google.oauth2.id_token
+from google.auth.transport import requests as google_requests
 
 from .models import User, PasswordResetToken
 from .permissions import IsAdminRol
@@ -170,5 +172,100 @@ class PasswordResetConfirmView(generics.CreateAPIView):
         
         return Response(
             {"message": "Contraseña restablecida exitosamente"},
+            status=status.HTTP_200_OK
+        )
+
+
+class GoogleOAuthValidateView(generics.CreateAPIView):
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AuthBurstThrottle]
+
+    def create(self, request, *args, **kwargs):
+        credential = request.data.get("credential")
+        
+        if not credential:
+            return Response(
+                {"error": "Se requiere el credential de Google"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar ID Token con google-auth
+        try:
+            idinfo = google.oauth2.id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request(),
+                audience=settings.GOOGLE_OAUTH2_CLIENT_ID
+            )
+        except ValueError as e:
+            return Response(
+                {"error": "Token de Google inválido o expirado"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validaciones adicionales del token
+        if idinfo.get("iss") != "accounts.google.com":
+            return Response(
+                {"error": "Issuer de Google inválido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if not idinfo.get("email_verified", False):
+            return Response(
+                {"error": "Email de Google no verificado"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        email = idinfo.get("email")
+        if not email:
+            return Response(
+                {"error": "Email no proporcionado por Google"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Buscar usuario por email
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # Usuario nuevo - crear cuenta
+            given_name = idinfo.get("given_name", "")
+            family_name = idinfo.get("family_name", "")
+            nombre = f"{given_name} {family_name}".strip() or email.split("@")[0]
+            
+            user = User.objects.create_user(
+                email=email,
+                password=None,  # Será set_unusable_password
+                nombre=nombre,
+                telefono="",
+                rol=User.Rol.CLIENTE
+            )
+            user.set_unusable_password()
+            user.save()
+        else:
+            # Usuario existe - verificar si tiene password usable
+            if user.has_usable_password():
+                return Response(
+                    {"error": "Ya existe una cuenta con este correo. Utiliza email y contraseña para iniciar sesión."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            # Usuario sin password usable (usuario Google) - permitir login sin modificar datos
+        
+        # Generar JWT propios de Django
+        from .serializers import LoginSerializer
+        tokens = LoginSerializer.get_token(user)
+        
+        return Response(
+            {
+                "access": str(tokens.access_token),
+                "refresh": str(tokens),
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "nombre": user.nombre,
+                    "telefono": user.telefono,
+                    "rol": user.rol,
+                    "is_active": user.is_active,
+                    "date_joined": user.date_joined.isoformat(),
+                }
+            },
             status=status.HTTP_200_OK
         )
