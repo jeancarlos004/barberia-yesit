@@ -196,16 +196,20 @@ class GoogleOAuthValidateView(generics.CreateAPIView):
                 google_requests.Request(),
                 audience=settings.GOOGLE_OAUTH2_CLIENT_ID
             )
+            # Debug: log del token info
+            print(f"Google ID Token info: {idinfo}")
         except ValueError as e:
+            print(f"Error validando token de Google: {e}")
             return Response(
-                {"error": "Token de Google inválido o expirado"},
+                {"error": f"Token de Google inválido o expirado: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
         # Validaciones adicionales del token
-        if idinfo.get("iss") != "accounts.google.com":
+        iss = idinfo.get("iss")
+        if iss not in ["accounts.google.com", "https://accounts.google.com"]:
             return Response(
-                {"error": "Issuer de Google inválido"},
+                {"error": f"Issuer de Google inválido: {iss}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
