@@ -64,8 +64,7 @@ class PasswordResetRequestSerializer(serializers.Serializer):
 
     def validate_email(self, value):
         email = value.strip().lower()
-        if not User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("No existe una cuenta con ese correo.")
+        # No validar si el email existe por seguridad
         return email
 
 
