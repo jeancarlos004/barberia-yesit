@@ -108,7 +108,14 @@ class PasswordResetRequestView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"]
         
-        user = User.objects.get(email__iexact=email)
+        try:
+            user = User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            # Por seguridad, no revelar si el email existe
+            return Response(
+                {"message": "Se ha enviado un correo con las instrucciones para restablecer tu contraseña"},
+                status=status.HTTP_200_OK
+            )
         
         # Eliminar tokens anteriores no usados
         PasswordResetToken.objects.filter(user=user, used=False).delete()
@@ -140,9 +147,11 @@ class PasswordResetRequestView(generics.CreateAPIView):
                 fail_silently=False
             )
         except Exception as e:
-            # En desarrollo, imprimir en consola
-            print(f"Email reset URL: {reset_url}")
-            print(f"Error enviando email: {e}")
+            # Retornar error si falla el envío de email
+            return Response(
+                {"error": f"Error enviando email: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
         return Response(
             {"message": "Se ha enviado un correo con las instrucciones para restablecer tu contraseña"},
