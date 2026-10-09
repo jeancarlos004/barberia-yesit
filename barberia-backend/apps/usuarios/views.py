@@ -131,16 +131,16 @@ class PasswordResetRequestView(generics.CreateAPIView):
         reset_url = f"{frontend_url}/reset-password?token={token.token}"
         
         # Enviar email usando API de Resend
-        import resend
-        resend.api_key = settings.EMAIL_HOST_PASSWORD
-
-        subject = "Restablecer tu contraseña - Barbería YESIT"
-        message = render_to_string(
-            "email/recuperar_password.html",
-            {"user": user, "reset_url": reset_url}
-        )
-
         try:
+            import resend
+            resend.api_key = settings.EMAIL_HOST_PASSWORD
+
+            subject = "Restablecer tu contraseña - Barbería YESIT"
+            message = render_to_string(
+                "email/recuperar_password.html",
+                {"user": user, "reset_url": reset_url}
+            )
+
             params = {
                 "from": settings.DEFAULT_FROM_EMAIL,
                 "to": [user.email],
