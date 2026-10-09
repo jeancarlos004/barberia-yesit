@@ -144,17 +144,13 @@ class PasswordResetRequestView(generics.CreateAPIView):
                 settings.DEFAULT_FROM_EMAIL,
                 [user.email],
                 html_message=message,
-                fail_silently=True
+                fail_silently=False
             )
         except Exception as e:
-            # Loguear error pero no fallar la petición
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error enviando email: {str(e)}")
-            # Retornar éxito de todos modos por seguridad
+            # Retornar error si falla el envío de email
             return Response(
-                {"message": "Se ha enviado un correo con las instrucciones para restablecer tu contraseña"},
-                status=status.HTTP_200_OK
+                {"error": f"Error enviando email: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
         
         return Response(
