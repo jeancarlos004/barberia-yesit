@@ -130,27 +130,33 @@ class PasswordResetRequestView(generics.CreateAPIView):
         frontend_url = settings.CORS_ALLOWED_ORIGINS[0] if settings.CORS_ALLOWED_ORIGINS else "http://localhost:8080"
         reset_url = f"{frontend_url}/reset-password?token={token.token}"
         
-        # Enviar email
+        # Enviar email usando API de Resend
+        import resend
+        resend.api_key = settings.EMAIL_HOST_PASSWORD
+
         subject = "Restablecer tu contraseña - Barbería YESIT"
         message = render_to_string(
             "email/recuperar_password.html",
             {"user": user, "reset_url": reset_url}
         )
-        
+
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                html_message=message,
-                fail_silently=False
-            )
+            params = {
+                "from": settings.DEFAULT_FROM_EMAIL,
+                "to": [user.email],
+                "subject": subject,
+                "html": message,
+            }
+            resend.Emails.send(params)
         except Exception as e:
-            # Retornar error si falla el envío de email
+            # Loguear error pero retornar éxito por seguridad
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error enviando email: {str(e)}")
+            # Retornar éxito de todos modos por seguridad
             return Response(
-                {"error": f"Error enviando email: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"message": "Se ha enviado un correo con las instrucciones para restablecer tu contraseña"},
+                status=status.HTTP_200_OK
             )
         
         return Response(

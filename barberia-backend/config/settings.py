@@ -137,17 +137,12 @@ SIMPLE_JWT = {
 
 SLOT_MINUTES = 30
 
-# Email Configuration
+# Email Configuration - Resend API
 EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in {"1", "true"}
-EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in {"1", "true"}
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+# Para Resend API, EMAIL_HOST_PASSWORD debe ser la API key
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@barberia-yesit.com")
 EMAIL_SUBJECT_PREFIX = "[Barbería YESIT] "
-EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
 
 # Google OAuth Configuration
 GOOGLE_OAUTH2_CLIENT_ID = os.getenv("GOOGLE_OAUTH2_CLIENT_ID", "")
