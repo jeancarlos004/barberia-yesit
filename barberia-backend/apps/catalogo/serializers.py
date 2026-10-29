@@ -20,8 +20,8 @@ class ServicioSerializer(serializers.ModelSerializer):
 
 
 class HorarioSerializer(serializers.ModelSerializer):
-    desde = serializers.TimeField(format="%H:%M", input_formats=["%H:%M", "%H:%M:%S"])
-    hasta = serializers.TimeField(format="%H:%M", input_formats=["%H:%M", "%H:%M:%S"])
+    desde = serializers.TimeField(format="%H:%M", input_formats=["%H:%M", "%H:%M:%S"], required=False, allow_null=True)
+    hasta = serializers.TimeField(format="%H:%M", input_formats=["%H:%M", "%H:%M:%S"], required=False, allow_null=True)
 
     class Meta:
         model = Horario
@@ -31,6 +31,15 @@ class HorarioSerializer(serializers.ModelSerializer):
         if value < 0 or value > 6:
             raise serializers.ValidationError("El día debe estar entre 0 y 6.")
         return value
+
+    def validate(self, attrs):
+        # Solo validar horarios si el día está abierto
+        if attrs.get("abierto", True):
+            desde = attrs.get("desde")
+            hasta = attrs.get("hasta")
+            if desde and hasta and desde >= hasta:
+                raise serializers.ValidationError("La hora de apertura debe ser anterior al cierre.")
+        return attrs
 
 
 class HorariosBulkSerializer(serializers.Serializer):
