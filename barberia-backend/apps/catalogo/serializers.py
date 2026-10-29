@@ -26,6 +26,9 @@ class HorarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Horario
         fields = ("dia", "abierto", "desde", "hasta")
+        extra_kwargs = {
+            "dia": {"validators": []}  # Eliminar validador de unicidad para permitir update_or_create
+        }
 
     def validate_dia(self, value):
         if value < 0 or value > 6:
